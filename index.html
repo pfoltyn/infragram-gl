@@ -13,7 +13,7 @@
         <link href="application.css" rel="stylesheet">
         <link href="infragram.css" rel="stylesheet">
 
-        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script><style type="text/css"></style>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script src="bootstrap/js/bootstrap.min.js"></script>
         <script src="bootstrap/js/bootstrap-slider.js"></script>
         <script type="text/javascript" src="webgl-utils.js"></script>
@@ -40,6 +40,24 @@
             uniform sampler2D uSampler;
             uniform float uMode;
             uniform float uGreyscale;
+
+            vec4 rgb2hsv(vec4 c)
+            {
+                vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+                vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+                vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+                float d = q.x - min(q.w, q.y);
+                float e = 1.0e-10;
+                return vec4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0);
+            }
+
+            vec4 hsv2rgb(vec4 c)
+            {
+                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                return vec4(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y), 1.0);
+            }
 
             vec4 color_colormap(float n)
             {
@@ -94,34 +112,20 @@
                 return result;
             }
 
-            vec4 rgb2hsv(vec4 c)
-            {
-                vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-                vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-                vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-
-                float d = q.x - min(q.w, q.y);
-                float e = 1.0e-10;
-                return vec4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0);
-            }
-
-            vec4 hsv2rgb(vec4 c)
-            {
-                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-                return vec4(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y), 1.0);
-            }
-
             void main(void)
             {
-                // gl_FragColor = hsv2rgb(rgb2hsv(texture2D(uSampler, vTextureCoord)));
-                if (uMode > 0.5)
+                if (uMode < 1.0)
+                {
+                    gl_FragColor = texture2D(uSampler, vTextureCoord);
+                }
+                else if (uMode < 2.0)
                 {
                     gl_FragColor = rgb2ndvi(texture2D(uSampler, vTextureCoord));
                 }
                 else
                 {
-                    gl_FragColor = texture2D(uSampler, vTextureCoord);
+                    vec4 tex = texture2D(uSampler, vTextureCoord);
+                    gl_FragColor = vec4(tex.r, tex.r, tex.r, 1.0);
                 }
             }
         </script>
@@ -209,7 +213,7 @@
         </div>
 
         <div id="image-container">
-          <canvas id="image" width="800" height="600"></canvas>
+          <canvas id="canvas-image" width="800" height="600"></canvas>
 
           <div id="colorbar-container">
             <span id="colorbar-min"></span>

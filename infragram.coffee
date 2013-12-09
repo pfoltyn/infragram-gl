@@ -90,7 +90,7 @@ initTexture = (fileObject) ->
         texture.image.src = fileObject;
 
 
-drawScene = () ->
+drawScene = (returnImage) ->
     #requestAnimFrame(drawScene, canvas)
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
@@ -99,10 +99,10 @@ drawScene = () ->
     gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
     gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, textureBuffer.itemSize, gl.FLOAT, false, 0, 0)
 
-    if mode == "raw"
-        gl.uniform1f(shaderProgram.pModeUniform, 0.0)
-    else
-        gl.uniform1f(shaderProgram.pModeUniform, 1.0)
+    switch mode
+        when "ndvi" then gl.uniform1f(shaderProgram.pModeUniform, 1.0)
+        when "nir" then gl.uniform1f(shaderProgram.pModeUniform, 2.0)
+        else gl.uniform1f(shaderProgram.pModeUniform, 0.0)
 
     if greyscale
         gl.uniform1f(shaderProgram.pGreyscaleUniform, 1.0)
@@ -114,24 +114,46 @@ drawScene = () ->
 
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
+    if returnImage
+        return canvas.toDataURL("image/png")
+
 
 webGlStart = () ->
-    canvas = document.getElementById("image")
+    canvas = document.getElementById("canvas-image")
     gl = getWebGLContext(canvas)
     if gl
         initShaders()
         initBuffers()
 
 
+download = () ->
+    # create an "off-screen" anchor tag
+    lnk = document.createElement("a")
+    # the key here is to set the download attribute of the a tag
+    lnk.download = (new Date()).toISOString().replace(":", "_") + ".png"
+    lnk.href = drawScene(true)
+
+    # create a "fake" click-event to trigger the download
+    if document.createEvent
+        event = document.createEvent("MouseEvents")
+        event.initMouseEvent(
+            "click", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null)
+        lnk.dispatchEvent(event)
+    else if lnk.fireEvent
+        lnk.fireEvent("onclick")
+
+
 setGreyscale = (value) ->
     greyscale = value
     drawScene()
+    $("#download").show()
 
 
 setMode = (newMode) ->
     mode = newMode
     drawScene()
 
+    $("#download").show()
     if mode == "ndvi"
         $("#colormaps-group")[0].style.display = "inline-block"
     else
@@ -144,4 +166,5 @@ onFileSelect = () ->
         reader = new FileReader()
         reader.onload = (e) ->
             initTexture(e.target.result)
+            $("#download").show()
         reader.readAsDataURL(input.files[0]);
