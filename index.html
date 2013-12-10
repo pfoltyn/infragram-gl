@@ -32,6 +32,8 @@
             }
         </script>
 
+        <script id="generated-shader-fs" type="x-shader/x-fragment"></script>
+
         <script id="shader-fs" type="x-shader/x-fragment">
             precision mediump float;
 
@@ -228,17 +230,15 @@
             $('button#ndvi').on('click', function() { setMode("ndvi"); });
             $('button#nir').on('click', function() { setMode("nir"); });
             $('#download').on('click', function() { download(); });
-            $('#infragrammar_hsv').on('submit', function() { save_expressions_hsv($('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val());setMode("infragrammar"); });
-            $('#infragrammar').on('submit', function() { save_expressions($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); setMode("infragrammar"); });
-            $('#infragrammar_mono').on('submit', function() { save_expressions($('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); setMode("infragrammar"); });
+            $('#infragrammar_hsv').on('submit', function() { save_expressions_hsv($('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val()); setMode("infragrammar"); });
+            $('#infragrammar').on('submit', function() { generateShader($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); setMode("infragrammar"); });
+            $('#infragrammar_mono').on('submit', function() { generateShader($('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); setMode("infragrammar"); });
 
             $('button#grey').on('click', function() { setGreyscale(true); });
             $('button#color').on('click', function() { setGreyscale(false); });
 
             // http://www.eyecon.ro/bootstrap-slider/
-            $('#slider').slider().on('slide', function(ev){
-              save_expressions($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val());update(image,"infragrammar");
-            });
+            $('#slider').slider().on('slide', function(ev){ setSlider(ev.value/100.0); setMode("infragrammar"); });
           })()
         </script>
 

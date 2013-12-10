@@ -23,17 +23,16 @@ texture = null
 
 mode = "raw"
 greyscale = true
+slider = 0.0
 
 
-initShaders = () ->
-    shaderProgram = createProgramFromScripts(gl, ["shader-vs", "shader-fs"])
-    gl.useProgram(shaderProgram);
+initShaders = (shaderNames) ->
+    shaderProgram = createProgramFromScripts(gl, shaderNames)
+    gl.useProgram(shaderProgram)
     shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition")
     gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute)
     shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord")
     gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute)
-    shaderProgram.pGreyscaleUniform = gl.getUniformLocation(shaderProgram, "uGreyscale");
-    shaderProgram.pModeUniform = gl.getUniformLocation(shaderProgram, "uMode");
 
 
 initBuffers = () ->
@@ -87,7 +86,7 @@ initTexture = (fileObject) ->
     if texture and texture.image
         texture.image.onload = () ->
             handleLoadedTexture(texture)
-        texture.image.src = fileObject;
+        texture.image.src = fileObject
 
 
 drawScene = (returnImage) ->
@@ -99,15 +98,21 @@ drawScene = (returnImage) ->
     gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
     gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, textureBuffer.itemSize, gl.FLOAT, false, 0, 0)
 
-    switch mode
-        when "ndvi" then gl.uniform1f(shaderProgram.pModeUniform, 1.0)
-        when "nir" then gl.uniform1f(shaderProgram.pModeUniform, 2.0)
-        else gl.uniform1f(shaderProgram.pModeUniform, 0.0)
-
-    if greyscale
-        gl.uniform1f(shaderProgram.pGreyscaleUniform, 1.0)
+    if mode == "infragrammar"
+        pSliderUniform = gl.getUniformLocation(shaderProgram, "uSlider")
+        gl.uniform1f(pSliderUniform, slider)
     else
-        gl.uniform1f(shaderProgram.pGreyscaleUniform, 0.0)
+        pModeUniform = gl.getUniformLocation(shaderProgram, "uMode")
+        switch mode
+            when "ndvi" then gl.uniform1f(pModeUniform, 1.0)
+            when "nir" then gl.uniform1f(pModeUniform, 2.0)
+            else gl.uniform1f(pModeUniform, 0.0)
+
+        pGreyscaleUniform = gl.getUniformLocation(shaderProgram, "uGreyscale")
+        if greyscale
+            gl.uniform1f(pGreyscaleUniform, 1.0)
+        else
+            gl.uniform1f(pGreyscaleUniform, 0.0)
 
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, texture)
@@ -118,12 +123,41 @@ drawScene = (returnImage) ->
         return canvas.toDataURL("image/png")
 
 
+generateShader = (r, g, b) ->
+    # Sanitize strings
+    r = r.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "")
+    g = g.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "")
+    b = b.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "")
+
+    # Convert int to float
+    r = r.replace(/([0-9])([^\.])?/g, "$1.0$2")
+    g = g.replace(/([0-9])([^\.])?/g, "$1.0$2")
+    b = b.replace(/([0-9])([^\.])?/g, "$1.0$2")
+
+    document.getElementById("generated-shader-fs").text = "
+        precision mediump float;
+        varying vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+        uniform float uSlider;
+
+        void main(void)
+        {
+            vec4 color = texture2D(uSampler, vTextureCoord);
+            float s = uSlider;
+            float r = color.r;
+            float g = color.g;
+            float b = color.b;" +
+           "float rr = " + r + ";" +
+           "float gg = " + g + ";" +
+           "float bb = " + b + ";" +
+           "gl_FragColor = vec4(rr, gg, bb, 1.0);
+        }"
+
+
 webGlStart = () ->
     canvas = document.getElementById("canvas-image")
     gl = getWebGLContext(canvas)
-    if gl
-        initShaders()
-        initBuffers()
+    initBuffers()
 
 
 download = () ->
@@ -145,13 +179,22 @@ download = () ->
 
 setGreyscale = (value) ->
     greyscale = value
-    drawScene()
+    drawScene(false)
     $("#download").show()
+
+
+setSlider = (value) ->
+    slider = value
+    drawScene(false)
 
 
 setMode = (newMode) ->
     mode = newMode
-    drawScene()
+    if mode == "infragrammar"
+        initShaders(["shader-vs", "generated-shader-fs"])
+    else
+        initShaders(["shader-vs", "shader-fs"])
+    drawScene(false)
 
     $("#download").show()
     if mode == "ndvi"
@@ -165,6 +208,7 @@ onFileSelect = () ->
     if input.files && input.files[0]
         reader = new FileReader()
         reader.onload = (e) ->
+            initShaders(["shader-vs", "shader-fs"])
             initTexture(e.target.result)
             $("#download").show()
-        reader.readAsDataURL(input.files[0]);
+        reader.readAsDataURL(input.files[0])
