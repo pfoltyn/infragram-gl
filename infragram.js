@@ -17,7 +17,7 @@ mode = "raw";
 
 greyscale = true;
 
-slider = 0.0;
+slider = 1.0;
 
 initShaders = function(shaderNames) {
   shaderProgram = createProgramFromScripts(gl, shaderNames);

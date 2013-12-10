@@ -1,6 +1,8 @@
 infragram-gl
 ============
 
+Live demo on http://ignuss.ovh.org/
+
 To get started:
     $ git clone https://github.com/pfoltyn/infragram-gl.git
     $ cd infragram-gl
