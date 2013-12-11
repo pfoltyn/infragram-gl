@@ -32,105 +32,7 @@
             }
         </script>
 
-        <script id="generated-shader-fs" type="x-shader/x-fragment"></script>
-
-        <script id="shader-fs" type="x-shader/x-fragment">
-            precision mediump float;
-
-            varying vec2 vTextureCoord;
-
-            uniform sampler2D uSampler;
-            uniform float uMode;
-            uniform float uGreyscale;
-
-            vec4 rgb2hsv(vec4 c)
-            {
-                vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-                vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-                vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-
-                float d = q.x - min(q.w, q.y);
-                float e = 1.0e-10;
-                return vec4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0);
-            }
-
-            vec4 hsv2rgb(vec4 c)
-            {
-                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-                return vec4(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y), 1.0);
-            }
-
-            vec4 color_colormap(float n)
-            {
-                vec3 x = vec3(0.0, 0.5, 0.0);
-                vec3 y0 = vec3(25.0, 0.0, 175.0) / 255.0;
-                vec3 y1 = vec3(38.0, 195.0, 195.0) / 255.0;
-                if (n >= 0.5)
-                {
-                    x = vec3(0.5, 0.75, 0.0);
-                    y0 = vec3(50.0, 155.0, 60.0) / 255.0;
-                    y1 = vec3(195.0, 190.0, 90.0) / 255.0;
-                }
-                else if (n >= 0.75)
-                {
-                    x = vec3(0.75, 1.0, 0.0);
-                    y0 = vec3(195.0, 190.0, 90.0) / 255.0;
-                    y1 = vec3(185.0, 50.0, 50.0) / 255.0;
-                }
-
-                return vec4(
-                    (n - x[0]) / (x[1] - x[0]) * (y1[0] - y0[0]) + y0[0],
-                    (n - x[0]) / (x[1] - x[0]) * (y1[1] - y0[1]) + y0[1],
-                    (n - x[0]) / (x[1] - x[0]) * (y1[2] - y0[2]) + y0[2],
-                    1.0);
-            }
-
-            vec4 greyscale_colormap(float n)
-            {
-                vec3 x  = vec3(0.0, 1.0, 0.0);
-                vec3 y0 = vec3(0.0, 0.0, 0.0);
-                vec3 y1 = vec3(255.0, 255.0, 255.0) / 255.0;
-
-                return vec4(
-                    (n - x[0]) / (x[1] - x[0]) * (y1[0] - y0[0]) + y0[0],
-                    (n - x[0]) / (x[1] - x[0]) * (y1[1] - y0[1]) + y0[1],
-                    (n - x[0]) / (x[1] - x[0]) * (y1[2] - y0[2]) + y0[2],
-                    1.0);
-            }
-
-            vec4 rgb2ndvi(vec4 c)
-            {
-                float ndvi = (((c.r - c.b) / (c.r + c.b)) + 1.0) / 2.0;
-                vec4 result = vec4(0.0, 0.0, 0.0, 0.0);
-                if (uGreyscale > 0.5)
-                {
-                    result = greyscale_colormap(ndvi);
-                }
-                else
-                {
-                    result = color_colormap(ndvi);
-                }
-                return result;
-            }
-
-            void main(void)
-            {
-                if (uMode < 1.0)
-                {
-                    gl_FragColor = texture2D(uSampler, vTextureCoord);
-                }
-                else if (uMode < 2.0)
-                {
-                    gl_FragColor = rgb2ndvi(texture2D(uSampler, vTextureCoord));
-                }
-                else
-                {
-                    vec4 tex = texture2D(uSampler, vTextureCoord);
-                    gl_FragColor = vec4(tex.r, tex.r, tex.r, 1.0);
-                }
-            }
-        </script>
+        <script id="shader-fs" type="x-shader/x-fragment"></script>
     </head>
     <body onload="webGlStart();">
 
@@ -152,13 +54,13 @@
 
         <h3>JavaScript Infragram Sandbox</h3>
 
-        <p>This page is a prototype (with <a href="https://github.com/Pioneer-Valley-Open-Science/infragram-js/issues?labels=bug&page=1&state=open">known bugs</a>), browser-based infrared compositing environment, <a href="https://github.com/bgamari/infragram-js">created by Ben Gamari</a> with additions by Don Blair and Jeff Warren.</p>
+        <p>This page is a prototype (with <a href="https://github.com/pfoltyn/infragram-gl/issues?labels=bug&page=1&state=open">known bugs</a>), browser-based infrared compositing environment, <a href="https://github.com/bgamari/infragram-js">created by Ben Gamari</a> with additions by Don Blair and Jeff Warren.</p>
 
         <div class="well">
 
           <div style="float:right;margin-right:20px;">
             <span style="margin-right:20px;">Learn how to use this <a href="http://publiclab.org/wiki/infragram-sandbox">at PublicLab.org/wiki/infragram-sandbox</a></span> 
-            <b>Slider: &nbsp; </b>
+            <b>Slider (X): &nbsp; </b>
             <div class="slider slider-horizontal" style="width: 220px;"><div class="slider-track"><div class="slider-selection" style="left: 0%; width: 100%;"></div><div class="slider-handle round" style="left: 100%;"></div><div class="slider-handle round hide" style="left: 0%;"></div></div><div class="tooltip top" style="top: -40px; left: 203px;"><div class="tooltip-arrow"></div><div class="tooltip-inner">100</div></div><input id="slider" type="text" value="100" data-slider-min="0" data-slider-max="100" data-slider-value="100" style=""></div>
           </div>
 
@@ -181,9 +83,9 @@
           </form>
 
           <form id="infragrammar_hsv" class="form-inline" style="display:inline;margin-right:20px;" action="javascript:void();">
-            <input placeholder="hue" type="text" id="h_exp" class="input-small">
-            <input placeholder="saturation" type="text" id="s_exp" class="input-small">
-            <input placeholder="value" type="text" id="v_exp" class="input-small">
+            <input placeholder="H" type="text" id="h_exp" class="input-small">
+            <input placeholder="S" type="text" id="s_exp" class="input-small">
+            <input placeholder="V" type="text" id="v_exp" class="input-small">
             <button type="submit" id="run" class="btn btn-primary">Run</button>
           </form>
 
@@ -226,19 +128,19 @@
 
         <script>
           (function(){
-            $('button#raw').on('click', function() { setMode("raw"); });
-            $('button#ndvi').on('click', function() { setMode("ndvi"); });
-            $('button#nir').on('click', function() { setMode("nir"); });
+            $('button#raw').on('click', function() { setMode("raw"); generateShader("r", "g", "b"); drawScene(); });
+            $('button#ndvi').on('click', function() { setMode("ndvi"); generateShader("(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2"); drawScene(); });
+            $('button#nir').on('click', function() { setMode("nir"); generateShader("r", "r", "r"); drawScene(); });
             $('#download').on('click', function() { download(); });
-            $('#infragrammar_hsv').on('submit', function() { save_expressions_hsv($('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val()); setMode("infragrammar"); });
-            $('#infragrammar').on('submit', function() { generateShader($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); setMode("infragrammar"); });
-            $('#infragrammar_mono').on('submit', function() { generateShader($('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); setMode("infragrammar"); });
+            $('#infragrammar_hsv').on('submit', function() { setMode("hsv"); generateShader($('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val()); drawScene(); });
+            $('#infragrammar').on('submit', function() { setMode("rgb"); generateShader($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); drawScene(); });
+            $('#infragrammar_mono').on('submit', function() { setMode("mono"); generateShader($('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); drawScene(); });
 
-            $('button#grey').on('click', function() { setGreyscale(true); });
-            $('button#color').on('click', function() { setGreyscale(false); });
+            $('button#grey').on('click', function() { setGreyscale(true); drawScene(); });
+            $('button#color').on('click', function() { setGreyscale(false); drawScene(); });
 
             // http://www.eyecon.ro/bootstrap-slider/
-            $('#slider').slider().on('slide', function(ev){ setSlider(ev.value/100.0); setMode("infragrammar"); });
+            $('#slider').slider().on('slide', function(ev){ setSlider(ev.value/100.0); drawScene(); });
           })()
         </script>
 
@@ -246,7 +148,7 @@
 
       <footer class="footer">
           <hr>
-          <h4 style="margin-bottom:40px;"><a style="color:#444;" href="http://infragram.org/">Infragram</a> <small>by <a href="http://publiclab.org/">Public Lab</a> | This web app is <a href="https://github.com/bgamari/infragram-js/">open source software</a></small></h4>
+          <h4 style="margin-bottom:40px;"><a style="color:#444;" href="http://infragram.org/">Infragram</a> <small>by <a href="http://publiclab.org/">Public Lab</a> | This web app is <a href="https://github.com/pfoltyn/infragram-gl/">open source software</a></small></h4>
       </footer>
  
     </div>

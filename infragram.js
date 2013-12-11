@@ -19,8 +19,8 @@ greyscale = true;
 
 slider = 1.0;
 
-initShaders = function(shaderNames) {
-  shaderProgram = createProgramFromScripts(gl, shaderNames);
+initShaders = function() {
+  shaderProgram = createProgramFromScripts(gl, ["shader-vs", "shader-fs"]);
   gl.useProgram(shaderProgram);
   shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
   gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
@@ -51,7 +51,7 @@ handleLoadedTexture = function(texture) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.bindTexture(gl.TEXTURE_2D, null);
-  return drawScene(false);
+  return drawScene();
 };
 
 initTexture = function(fileObject) {
@@ -74,33 +74,19 @@ initTexture = function(fileObject) {
 };
 
 drawScene = function(returnImage) {
-  var pGreyscaleUniform, pModeUniform, pSliderUniform;
+  var pGreyscaleUniform, pHsvUniform, pNdviUniform, pSliderUniform;
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
   gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
   gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
   gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-  if (mode === "infragrammar") {
-    pSliderUniform = gl.getUniformLocation(shaderProgram, "uSlider");
-    gl.uniform1f(pSliderUniform, slider);
-  } else {
-    pModeUniform = gl.getUniformLocation(shaderProgram, "uMode");
-    switch (mode) {
-      case "ndvi":
-        gl.uniform1f(pModeUniform, 1.0);
-        break;
-      case "nir":
-        gl.uniform1f(pModeUniform, 2.0);
-        break;
-      default:
-        gl.uniform1f(pModeUniform, 0.0);
-    }
-    pGreyscaleUniform = gl.getUniformLocation(shaderProgram, "uGreyscale");
-    if (greyscale) {
-      gl.uniform1f(pGreyscaleUniform, 1.0);
-    } else {
-      gl.uniform1f(pGreyscaleUniform, 0.0);
-    }
-  }
+  pSliderUniform = gl.getUniformLocation(shaderProgram, "uSlider");
+  gl.uniform1f(pSliderUniform, slider);
+  pNdviUniform = gl.getUniformLocation(shaderProgram, "uNdvi");
+  gl.uniform1f(pNdviUniform, (mode === "ndvi" ? 1.0 : 0.0));
+  pGreyscaleUniform = gl.getUniformLocation(shaderProgram, "uGreyscale");
+  gl.uniform1f(pGreyscaleUniform, (greyscale ? 1.0 : 0.0));
+  pHsvUniform = gl.getUniformLocation(shaderProgram, "uHsv");
+  gl.uniform1f(pHsvUniform, (mode === "hsv" ? 1.0 : 0.0));
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -110,13 +96,26 @@ drawScene = function(returnImage) {
 };
 
 generateShader = function(r, g, b) {
-  r = r.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "");
-  g = g.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "");
-  b = b.toLowerCase().replace(/[^srgb\/\-\+\*\(\)\.0-9]*/g, "");
+  r = r.toLowerCase().replace(/h/g, "r").replace(/s/g, "g").replace(/v/g, "b");
+  g = g.toLowerCase().replace(/h/g, "r").replace(/s/g, "g").replace(/v/g, "b");
+  b = b.toLowerCase().replace(/h/g, "r").replace(/s/g, "g").replace(/v/g, "b");
+  r = r.replace(/[^xrgb\/\-\+\*\(\)\.0-9]*/g, "");
+  g = g.replace(/[^xrgb\/\-\+\*\(\)\.0-9]*/g, "");
+  b = b.replace(/[^xrgb\/\-\+\*\(\)\.0-9]*/g, "");
   r = r.replace(/([0-9])([^\.])?/g, "$1.0$2");
   g = g.replace(/([0-9])([^\.])?/g, "$1.0$2");
   b = b.replace(/([0-9])([^\.])?/g, "$1.0$2");
-  return document.getElementById("generated-shader-fs").text = "        precision mediump float;        varying vec2 vTextureCoord;        uniform sampler2D uSampler;        uniform float uSlider;        void main(void)        {            vec4 color = texture2D(uSampler, vTextureCoord);            float s = uSlider;            float r = color.r;            float g = color.g;            float b = color.b;" + "float rr = " + r + ";" + "float gg = " + g + ";" + "float bb = " + b + ";" + "gl_FragColor = vec4(rr, gg, bb, 1.0);        }";
+  if (r === "") {
+    r = "r";
+  }
+  if (g === "") {
+    g = "g";
+  }
+  if (b === "") {
+    b = "b";
+  }
+  document.getElementById("shader-fs").text = "        precision mediump float;        varying vec2 vTextureCoord;        uniform sampler2D uSampler;        uniform float uSlider;        uniform float uNdvi;        uniform float uGreyscale;        uniform float uHsv;        vec4 greyscale_colormap(float n)        {            vec3 x  = vec3(0.0, 1.0, 0.0);            vec3 y0 = vec3(0.0, 0.0, 0.0);            vec3 y1 = vec3(255.0, 255.0, 255.0) / 255.0;            return vec4(                (n - x[0]) / (x[1] - x[0]) * (y1[0] - y0[0]) + y0[0],                (n - x[0]) / (x[1] - x[0]) * (y1[1] - y0[1]) + y0[1],                (n - x[0]) / (x[1] - x[0]) * (y1[2] - y0[2]) + y0[2],                1.0);        }        vec4 color_colormap(float n)        {            vec3 x = vec3(0.0, 0.5, 0.0);            vec3 y0 = vec3(25.0, 0.0, 175.0) / 255.0;            vec3 y1 = vec3(38.0, 195.0, 195.0) / 255.0;            if (n >= 0.5)            {                x = vec3(0.5, 0.75, 0.0);                y0 = vec3(50.0, 155.0, 60.0) / 255.0;                y1 = vec3(195.0, 190.0, 90.0) / 255.0;            }            else if (n >= 0.75)            {                x = vec3(0.75, 1.0, 0.0);                y0 = vec3(195.0, 190.0, 90.0) / 255.0;                y1 = vec3(185.0, 50.0, 50.0) / 255.0;            }            return vec4(                (n - x[0]) / (x[1] - x[0]) * (y1[0] - y0[0]) + y0[0],                (n - x[0]) / (x[1] - x[0]) * (y1[1] - y0[1]) + y0[1],                (n - x[0]) / (x[1] - x[0]) * (y1[2] - y0[2]) + y0[2],                1.0);        }        vec4 rgb2hsv(vec4 c)        {            vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);            vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));            vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));            float d = q.x - min(q.w, q.y);            float e = 1.0e-10;            return vec4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0);        }        vec4 hsv2rgb(vec4 c)        {            vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);            return vec4(c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y), 1.0);        }        void main(void)        {            vec4 color = texture2D(uSampler, vTextureCoord);            if (uHsv >= 1.0)            {                color = rgb2hsv(color);            }            float x = uSlider;            float r = color.r;            float g = color.g;            float b = color.b;" + "float rr = " + r + ";" + "float gg = " + g + ";" + "float bb = " + b + ";" + "if (uNdvi < 1.0)            {                color = vec4(rr, gg, bb, 1.0);                gl_FragColor = (uHsv < 1.0) ? color : hsv2rgb(color);            }            else            {                gl_FragColor = (uGreyscale < 1.0) ? color_colormap(rr) : greyscale_colormap(rr);            }        }";
+  return initShaders();
 };
 
 webGlStart = function() {
@@ -141,23 +140,15 @@ download = function() {
 
 setGreyscale = function(value) {
   greyscale = value;
-  drawScene(false);
   return $("#download").show();
 };
 
 setSlider = function(value) {
-  slider = value;
-  return drawScene(false);
+  return slider = value;
 };
 
 setMode = function(newMode) {
   mode = newMode;
-  if (mode === "infragrammar") {
-    initShaders(["shader-vs", "generated-shader-fs"]);
-  } else {
-    initShaders(["shader-vs", "shader-fs"]);
-  }
-  drawScene(false);
   $("#download").show();
   if (mode === "ndvi") {
     return $("#colormaps-group")[0].style.display = "inline-block";
@@ -172,7 +163,8 @@ onFileSelect = function() {
   if (input.files && input.files[0]) {
     reader = new FileReader();
     reader.onload = function(e) {
-      initShaders(["shader-vs", "shader-fs"]);
+      generateShader("r", "g", "b");
+      initShaders();
       initTexture(e.target.result);
       return $("#download").show();
     };
