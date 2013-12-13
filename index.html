@@ -34,7 +34,7 @@
 
         <script id="shader-fs" type="x-shader/x-fragment"></script>
     </head>
-    <body onload="webGlStart();">
+    <body>
 
     <div class="container page" style="padding-top:10px;">
       <img src="./infragram-logo.png" style="float:left;margin-right:14px;">
@@ -66,7 +66,7 @@
 
           <form name="file-form">
               <b>Select an <a href="http://publiclab.org/wiki/near-infrared-camera">infrablue image</a>: </b>
-              <input id="file-sel" type="file" onchange="onFileSelect();">
+              <input id="file-sel" type="file" />
           </form>
 
           <form id="infragrammar" class="form-inline" style="display:inline;margin-right:20px;" action="javascript:void();">
@@ -119,28 +119,28 @@
         <div id="image-container">
           <canvas id="canvas-image" width="800" height="600"></canvas>
 
-          <div id="colorbar-container">
-            <span id="colorbar-min"></span>
+          <div id="colorbar-container" style="display:none;">
+            <span id="colorbar-min">-1.00</span>
             <canvas id="colorbar"></canvas>
-            <span id="colorbar-max"></span>
+            <span id="colorbar-max">1.00</span>
           </div>
         </div>
 
         <script>
           (function(){
-            $('button#raw').on('click', function() { setMode("raw"); generateShader("r", "g", "b"); drawScene(); });
-            $('button#ndvi').on('click', function() { setMode("ndvi"); generateShader("(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2"); drawScene(); });
-            $('button#nir').on('click', function() { setMode("nir"); generateShader("r", "r", "r"); drawScene(); });
-            $('#download').on('click', function() { download(); });
-            $('#infragrammar_hsv').on('submit', function() { setMode("hsv"); generateShader($('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val()); drawScene(); });
-            $('#infragrammar').on('submit', function() { setMode("rgb"); generateShader($('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); drawScene(); });
-            $('#infragrammar_mono').on('submit', function() { setMode("mono"); generateShader($('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); drawScene(); });
+            $('button#raw').on('click', function() { setMode("raw"); generateShader(img_context, "r", "g", "b"); drawScene(img_context); });
+            $('button#ndvi').on('click', function() { setMode("ndvi"); generateShader(img_context, "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2"); drawScene(img_context); });
+            $('button#nir').on('click', function() { setMode("nir"); generateShader(img_context, "r", "r", "r"); drawScene(img_context); });
+            $('#download').on('click', function() { download(img_context); });
+            $('#infragrammar_hsv').on('submit', function() { setMode("hsv"); generateShader(img_context, $('#h_exp').val(),$('#s_exp').val(),$('#v_exp').val()); drawScene(img_context); });
+            $('#infragrammar').on('submit', function() { setMode("rgb"); generateShader(img_context, $('#r_exp').val(),$('#g_exp').val(),$('#b_exp').val()); drawScene(img_context); });
+            $('#infragrammar_mono').on('submit', function() { setMode("mono"); generateShader(img_context, $('#m_exp').val(),$('#m_exp').val(),$('#m_exp').val()); drawScene(img_context); });
 
-            $('button#grey').on('click', function() { setGreyscale(true); drawScene(); });
-            $('button#color').on('click', function() { setGreyscale(false); drawScene(); });
+            $('button#grey').on('click', function() { setGreyscale(true); drawScene(img_context); });
+            $('button#color').on('click', function() { setGreyscale(false); drawScene(img_context); });
 
             // http://www.eyecon.ro/bootstrap-slider/
-            $('#slider').slider().on('slide', function(ev){ setSlider(ev.value/100.0); drawScene(); });
+            $('#slider').slider().on('slide', function(ev){ setSlider(ev.value/100.0); drawScene(img_context); });
           })()
         </script>
 

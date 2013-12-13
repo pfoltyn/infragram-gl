@@ -14,30 +14,19 @@
 # along with infragram-gl.  If not, see <http://www.gnu.org/licenses/>.
 
 
-canvas = null
-gl = null
-shaderProgram = null
-vertexBuffer = null
-textureBuffer = null
-texture = null
+img_context = null
+map_context = null
 
 mode = "raw"
 greyscale = true
+colormap = false
 slider = 1.0
 
 
-initShaders = () ->
-    shaderProgram = createProgramFromScripts(gl, ["shader-vs", "shader-fs"])
-    gl.useProgram(shaderProgram)
-    shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition")
-    gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute)
-    shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord")
-    gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute)
-
-
-initBuffers = () ->
-    vertexBuffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+initBuffers = (ctx) ->
+    gl = ctx.gl
+    ctx.vertexBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, ctx.vertexBuffer)
     vertices = [
        -1.0, -1.0,
         1.0, -1.0,
@@ -46,10 +35,10 @@ initBuffers = () ->
         1.0, -1.0,
         1.0,  1.0,]
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW)
-    vertexBuffer.itemSize = 2
+    ctx.vertexBuffer.itemSize = 2
 
-    textureBuffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
+    ctx.textureBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, ctx.textureBuffer)
     textureCoords = [
         0.0,  0.0,
         1.0,  0.0,
@@ -58,63 +47,58 @@ initBuffers = () ->
         1.0,  0.0,
         1.0,  1.0]
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW)
-    textureBuffer.itemSize = 2
+    ctx.textureBuffer.itemSize = 2
 
 
-handleLoadedTexture = (texture) ->
-    gl.bindTexture(gl.TEXTURE_2D, texture)
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-    gl.bindTexture(gl.TEXTURE_2D, null)
-    drawScene()
+createContext = (canvasName) ->
+    ctx = new Object()
+    ctx.canvas = document.getElementById(canvasName)
+    ctx.gl = getWebGLContext(ctx.canvas)
+    initBuffers(ctx)
+    return ctx
 
 
-initTexture = (fileObject) ->
-    texture = gl.createTexture()
-    if !texture
-        alert("Failed to create square buffer")
-
-    if texture
-        texture.image = new Image()
-        if !texture.image
-            alert("Failed to create image")
-
-    if texture and texture.image
-        texture.image.onload = () ->
-            handleLoadedTexture(texture)
-        texture.image.src = fileObject
+window.onload = () ->
+    img_context = createContext("canvas-image")
+    map_context = createContext("colorbar")
 
 
-drawScene = (returnImage) ->
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
-    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0)
+initShaders = (ctx) ->
+    gl = ctx.gl
+    ctx.shaderProgram = createProgramFromScripts(gl, ["shader-vs", "shader-fs"])
+    gl.useProgram(ctx.shaderProgram)
+    ctx.shaderProgram.vertexPositionAttribute = gl.getAttribLocation(ctx.shaderProgram, "aVertexPosition")
+    gl.enableVertexAttribArray(ctx.shaderProgram.vertexPositionAttribute)
+    ctx.shaderProgram.textureCoordAttribute = gl.getAttribLocation(ctx.shaderProgram, "aTextureCoord")
+    gl.enableVertexAttribArray(ctx.shaderProgram.textureCoordAttribute)
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer)
-    gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, textureBuffer.itemSize, gl.FLOAT, false, 0, 0)
 
-    pSliderUniform = gl.getUniformLocation(shaderProgram, "uSlider")
+drawScene = (ctx, returnImage) ->
+    gl = ctx.gl
+    gl.bindBuffer(gl.ARRAY_BUFFER, ctx.vertexBuffer)
+    gl.vertexAttribPointer(ctx.shaderProgram.vertexPositionAttribute, ctx.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0)
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ctx.textureBuffer)
+    gl.vertexAttribPointer(ctx.shaderProgram.textureCoordAttribute, ctx.textureBuffer.itemSize, gl.FLOAT, false, 0, 0)
+
+    pSliderUniform = gl.getUniformLocation(ctx.shaderProgram, "uSlider")
     gl.uniform1f(pSliderUniform, slider)
-    pNdviUniform = gl.getUniformLocation(shaderProgram, "uNdvi")
+    pNdviUniform = gl.getUniformLocation(ctx.shaderProgram, "uNdvi")
     gl.uniform1f(pNdviUniform, (if mode == "ndvi" then 1.0 else 0.0))
-    pGreyscaleUniform = gl.getUniformLocation(shaderProgram, "uGreyscale")
+    pGreyscaleUniform = gl.getUniformLocation(ctx.shaderProgram, "uGreyscale")
     gl.uniform1f(pGreyscaleUniform, (if greyscale then 1.0 else 0.0))
-    pHsvUniform = gl.getUniformLocation(shaderProgram, "uHsv")
+    pHsvUniform = gl.getUniformLocation(ctx.shaderProgram, "uHsv")
     gl.uniform1f(pHsvUniform, (if mode == "hsv" then 1.0 else 0.0))
-
-    gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, texture)
+    pColormap = gl.getUniformLocation(ctx.shaderProgram, "uColormap")
+    gl.uniform1f(pColormap, (if colormap then 1.0 else 0.0))
 
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
     if returnImage
-        return canvas.toDataURL("image/png")
+        return ctx.canvas.toDataURL("image/png")
 
 
-generateShader = (r, g, b) ->
+generateShader = (ctx, r, g, b) ->
     # Map HSV to shader variable names
     r = r.toLowerCase().replace(/h/g, "r").replace(/s/g, "g").replace(/v/g, "b")
     g = g.toLowerCase().replace(/h/g, "r").replace(/s/g, "g").replace(/v/g, "b")
@@ -145,6 +129,7 @@ generateShader = (r, g, b) ->
         uniform float uNdvi;
         uniform float uGreyscale;
         uniform float uHsv;
+        uniform float uColormap;
 
         vec4 greyscale_colormap(float n)
         {
@@ -206,7 +191,11 @@ generateShader = (r, g, b) ->
         void main(void)
         {
             vec4 color = texture2D(uSampler, vTextureCoord);
-            if (uHsv >= 1.0)
+            if (uColormap >= 1.0)
+            {
+                color = vec4(vTextureCoord, 0.0, 0.0);
+            }
+            else if (uHsv >= 1.0)
             {
                 color = rgb2hsv(color);
             }
@@ -228,21 +217,15 @@ generateShader = (r, g, b) ->
             }
         }"
 
-    initShaders()
+    initShaders(ctx)
 
 
-webGlStart = () ->
-    canvas = document.getElementById("canvas-image")
-    gl = getWebGLContext(canvas)
-    initBuffers()
-
-
-download = () ->
+download = (ctx) ->
     # create an "off-screen" anchor tag
     lnk = document.createElement("a")
     # the key here is to set the download attribute of the a tag
     lnk.download = (new Date()).toISOString().replace(":", "_") + ".png"
-    lnk.href = drawScene(true)
+    lnk.href = drawScene(ctx, true)
 
     # create a "fake" click-event to trigger the download
     if document.createEvent
@@ -256,7 +239,6 @@ download = () ->
 
 setGreyscale = (value) ->
     greyscale = value
-    $("#download").show()
 
 
 setSlider = (value) ->
@@ -267,18 +249,42 @@ setMode = (newMode) ->
     mode = newMode
     $("#download").show()
     if mode == "ndvi"
+        $("#colorbar-container")[0].style.display = "inline-block"
         $("#colormaps-group")[0].style.display = "inline-block"
     else
+        $("#colorbar-container")[0].style.display = "none"
         $("#colormaps-group")[0].style.display = "none"
 
 
-onFileSelect = () -> 
-    input = document.getElementById("file-sel")
-    if input.files && input.files[0]
-        reader = new FileReader()
-        reader.onload = (e) ->
-            generateShader("r", "g", "b")
-            initShaders()
-            initTexture(e.target.result)
-            $("#download").show()
-        reader.readAsDataURL(input.files[0])
+handleLoadedTexture = (ctx) ->
+    gl = ctx.gl
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, ctx.texture)
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ctx.image)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    setMode("raw");
+    generateShader(ctx, "r", "g", "b")
+    drawScene(ctx)
+
+
+initTexture = (ctx, fileObject) ->
+    ctx.texture = ctx.gl.createTexture()
+    ctx.image = new Image()
+    ctx.image.onload = () ->
+        handleLoadedTexture(ctx)
+    ctx.image.src = fileObject
+
+
+$("document").ready(() ->
+    $("#file-sel").change(() ->
+        if this.files && this.files[0]
+            reader = new FileReader()
+            reader.onload = (e) ->
+                initTexture(img_context, e.target.result)
+            reader.readAsDataURL(this.files[0])
+    )
+)
