@@ -58,11 +58,6 @@ createContext = (canvasName) ->
     return ctx
 
 
-window.onload = () ->
-    img_context = createContext("canvas-image")
-    map_context = createContext("colorbar")
-
-
 initShaders = (ctx) ->
     gl = ctx.gl
     ctx.shaderProgram = createProgramFromScripts(gl, ["shader-vs", "shader-fs"])
@@ -280,11 +275,70 @@ initTexture = (ctx, fileObject) ->
 
 
 $("document").ready(() ->
+    img_context = createContext("canvas-image")
+    map_context = createContext("colorbar")
+
     $("#file-sel").change(() ->
         if this.files && this.files[0]
             reader = new FileReader()
-            reader.onload = (e) ->
-                initTexture(img_context, e.target.result)
+            reader.onload = (eventObject) ->
+                initTexture(img_context, eventObject.target.result)
             reader.readAsDataURL(this.files[0])
+    )
+
+    $('button#raw').click(() ->
+        setMode("raw")
+        generateShader(img_context, "r", "g", "b")
+        drawScene(img_context)
+    )
+
+    $('button#ndvi').click(() ->
+        setMode("ndvi")
+        generateShader(img_context, "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2")
+        drawScene(img_context)
+    )
+
+    $('button#nir').click(() ->
+        setMode("nir")
+        generateShader(img_context, "r", "r", "r")
+        drawScene(img_context)
+    )
+
+    $('#download').click(() ->
+        download(img_context)
+    )
+
+    $('#infragrammar_hsv').submit(() ->
+        setMode("hsv")
+        generateShader(img_context, $('#h_exp').val(), $('#s_exp').val(), $('#v_exp').val())
+        drawScene(img_context)
+    )
+
+    $('#infragrammar').submit(() ->
+        setMode("rgb")
+        generateShader(img_context, $('#r_exp').val(), $('#g_exp').val(), $('#b_exp').val())
+        drawScene(img_context)
+    )
+
+    $('#infragrammar_mono').submit(() ->
+        setMode("mono")
+        generateShader(img_context, $('#m_exp').val(), $('#m_exp').val(), $('#m_exp').val())
+        drawScene(img_context)
+    )
+
+    $('button#grey').click(() ->
+        setGreyscale(true)
+        drawScene(img_context)
+    )
+
+    $('button#color').click(() ->
+        setGreyscale(false)
+        drawScene(img_context)
+    )
+
+    # http://www.eyecon.ro/bootstrap-slider/
+    $('#slider').slider().on('slide', (event) ->
+        setSlider(event.value/100.0)
+        drawScene(img_context)
     )
 )

@@ -37,11 +37,6 @@ createContext = function(canvasName) {
   return ctx;
 };
 
-window.onload = function() {
-  img_context = createContext("canvas-image");
-  return map_context = createContext("colorbar");
-};
-
 initShaders = function(ctx) {
   var gl;
   gl = ctx.gl;
@@ -159,14 +154,61 @@ initTexture = function(ctx, fileObject) {
 };
 
 $("document").ready(function() {
-  return $("#file-sel").change(function() {
+  img_context = createContext("canvas-image");
+  map_context = createContext("colorbar");
+  $("#file-sel").change(function() {
     var reader;
     if (this.files && this.files[0]) {
       reader = new FileReader();
-      reader.onload = function(e) {
-        return initTexture(img_context, e.target.result);
+      reader.onload = function(eventObject) {
+        return initTexture(img_context, eventObject.target.result);
       };
       return reader.readAsDataURL(this.files[0]);
     }
+  });
+  $('button#raw').click(function() {
+    setMode("raw");
+    generateShader(img_context, "r", "g", "b");
+    return drawScene(img_context);
+  });
+  $('button#ndvi').click(function() {
+    setMode("ndvi");
+    generateShader(img_context, "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2");
+    return drawScene(img_context);
+  });
+  $('button#nir').click(function() {
+    setMode("nir");
+    generateShader(img_context, "r", "r", "r");
+    return drawScene(img_context);
+  });
+  $('#download').click(function() {
+    return download(img_context);
+  });
+  $('#infragrammar_hsv').submit(function(event) {
+    setMode("hsv");
+    generateShader(img_context, $('#h_exp').val(), $('#s_exp').val(), $('#v_exp').val());
+    return drawScene(img_context);
+  });
+  $('#infragrammar').submit(function(event) {
+    setMode("rgb");
+    generateShader(img_context, $('#r_exp').val(), $('#g_exp').val(), $('#b_exp').val());
+    return drawScene(img_context);
+  });
+  $('#infragrammar_mono').submit(function(event) {
+    setMode("mono");
+    generateShader(img_context, $('#m_exp').val(), $('#m_exp').val(), $('#m_exp').val());
+    return drawScene(img_context);
+  });
+  $('button#grey').click(function() {
+    setGreyscale(true);
+    return drawScene(img_context);
+  });
+  $('button#color').click(function() {
+    setGreyscale(false);
+    return drawScene(img_context);
+  });
+  return $('#slider').slider().on('slide', function(event) {
+    setSlider(event.value / 100.0);
+    return drawScene(img_context);
   });
 });
