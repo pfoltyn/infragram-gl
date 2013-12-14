@@ -17,11 +17,6 @@
 img_context = null
 map_context = null
 
-mode = "raw"
-greyscale = true
-colormap = false
-slider = 1.0
-
 
 initBuffers = (ctx) ->
     gl = ctx.gl
@@ -50,8 +45,12 @@ initBuffers = (ctx) ->
     ctx.textureBuffer.itemSize = 2
 
 
-createContext = (canvasName) ->
+createContext = (mode, greyscale, colormap, slider, canvasName) ->
     ctx = new Object()
+    ctx.mode = mode
+    ctx.greyscale = greyscale
+    ctx.colormap = colormap
+    ctx.slider = slider
     ctx.canvas = document.getElementById(canvasName)
     ctx.gl = getWebGLContext(ctx.canvas)
     initBuffers(ctx)
@@ -77,15 +76,15 @@ drawScene = (ctx, returnImage) ->
     gl.vertexAttribPointer(ctx.shaderProgram.textureCoordAttribute, ctx.textureBuffer.itemSize, gl.FLOAT, false, 0, 0)
 
     pSliderUniform = gl.getUniformLocation(ctx.shaderProgram, "uSlider")
-    gl.uniform1f(pSliderUniform, slider)
+    gl.uniform1f(pSliderUniform, ctx.slider)
     pNdviUniform = gl.getUniformLocation(ctx.shaderProgram, "uNdvi")
-    gl.uniform1f(pNdviUniform, (if mode == "ndvi" then 1.0 else 0.0))
+    gl.uniform1f(pNdviUniform, (if ctx.mode == "ndvi" then 1.0 else 0.0))
     pGreyscaleUniform = gl.getUniformLocation(ctx.shaderProgram, "uGreyscale")
-    gl.uniform1f(pGreyscaleUniform, (if greyscale then 1.0 else 0.0))
+    gl.uniform1f(pGreyscaleUniform, (if ctx.greyscale then 1.0 else 0.0))
     pHsvUniform = gl.getUniformLocation(ctx.shaderProgram, "uHsv")
-    gl.uniform1f(pHsvUniform, (if mode == "hsv" then 1.0 else 0.0))
+    gl.uniform1f(pHsvUniform, (if ctx.mode == "hsv" then 1.0 else 0.0))
     pColormap = gl.getUniformLocation(ctx.shaderProgram, "uColormap")
-    gl.uniform1f(pColormap, (if colormap then 1.0 else 0.0))
+    gl.uniform1f(pColormap, (if ctx.colormap then 1.0 else 0.0))
 
     gl.drawArrays(gl.TRIANGLES, 0, 6)
 
@@ -139,18 +138,10 @@ download = (ctx) ->
         lnk.fireEvent("onclick")
 
 
-setGreyscale = (value) ->
-    greyscale = value
-
-
-setSlider = (value) ->
-    slider = value
-
-
-setMode = (newMode) ->
-    mode = newMode
+setMode = (ctx, newMode) ->
+    ctx.mode = newMode
     $("#download").show()
-    if mode == "ndvi"
+    if ctx.mode == "ndvi"
         $("#colorbar-container")[0].style.display = "inline-block"
         $("#colormaps-group")[0].style.display = "inline-block"
     else
@@ -168,7 +159,7 @@ handleLoadedTexture = (ctx) ->
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-    setMode("raw");
+    setMode(ctx, "raw");
     generateShader(ctx, "r", "g", "b")
     drawScene(ctx)
 
@@ -185,8 +176,8 @@ $(window).load(() ->
     $("#shader-vs").load("shader.vert")
     $("#shader-fs-template").load("shader.frag")
 
-    img_context = createContext("canvas-image")
-    map_context = createContext("colorbar")
+    img_context = createContext("raw", true, false, 1.0, "canvas-image")
+    map_context = createContext("ndvi", true, true, 1.0, "colorbar")
 )
 
 
@@ -196,23 +187,26 @@ $(document).ready(() ->
             reader = new FileReader()
             reader.onload = (eventObject) ->
                 initTexture(img_context, eventObject.target.result)
+                generateShader(map_context, "r", "g", "b")
             reader.readAsDataURL(this.files[0])
     )
 
     $('button#raw').click(() ->
-        setMode("raw")
+        setMode(img_context, "raw")
         generateShader(img_context, "r", "g", "b")
         drawScene(img_context)
     )
 
     $('button#ndvi').click(() ->
-        setMode("ndvi")
+        setMode(img_context, "ndvi")
         generateShader(img_context, "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2", "(((r-b)/(r+b))+1)/2")
         drawScene(img_context)
+
+        drawScene(map_context)
     )
 
     $('button#nir').click(() ->
-        setMode("nir")
+        setMode(img_context, "nir")
         generateShader(img_context, "r", "r", "r")
         drawScene(img_context)
     )
@@ -222,36 +216,42 @@ $(document).ready(() ->
     )
 
     $('#infragrammar_hsv').submit(() ->
-        setMode("hsv")
+        setMode(img_context, "hsv")
         generateShader(img_context, $('#h_exp').val(), $('#s_exp').val(), $('#v_exp').val())
         drawScene(img_context)
     )
 
     $('#infragrammar').submit(() ->
-        setMode("rgb")
+        setMode(img_context, "rgb")
         generateShader(img_context, $('#r_exp').val(), $('#g_exp').val(), $('#b_exp').val())
         drawScene(img_context)
     )
 
     $('#infragrammar_mono').submit(() ->
-        setMode("mono")
+        setMode(img_context, "mono")
         generateShader(img_context, $('#m_exp').val(), $('#m_exp').val(), $('#m_exp').val())
         drawScene(img_context)
     )
 
     $('button#grey').click(() ->
-        setGreyscale(true)
+        img_context.greyscale = true
         drawScene(img_context)
+
+        map_context.greyscale = true
+        drawScene(map_context)
     )
 
     $('button#color').click(() ->
-        setGreyscale(false)
+        img_context.greyscale = false
         drawScene(img_context)
+
+        map_context.greyscale = false
+        drawScene(map_context)
     )
 
     # http://www.eyecon.ro/bootstrap-slider/
     $('#slider').slider().on('slide', (event) ->
-        setSlider(event.value/100.0)
+        img_context.slider = event.value / 100.0
         drawScene(img_context)
     )
 )
